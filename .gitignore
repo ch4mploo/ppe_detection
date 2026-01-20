@@ -1,3 +1,4 @@
+.gitignore
 .env
 violation_*.jpg
 __pycache__/
