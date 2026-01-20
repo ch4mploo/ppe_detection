@@ -1,0 +1,4 @@
+.env
+violation_*.jpg
+__pycache__/
+runs/
