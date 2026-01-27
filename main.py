@@ -1,87 +1,70 @@
-import cv2
-import time
+import cv2, time, threading
+from datetime import datetime
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
+
 from detector import PPEDetector
 from email_alert import send_alert
+from camera_manager import CameraManager
 
-app = FastAPI()
 detector = PPEDetector()
-camera = None
-running = True
+camera = CameraManager(src=0)
 current_status = "No detection"
+shutdown_event = threading.Event()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Docstring for lifespan
-    
-    :param app: Description
-    :type app: FastAPI
-    Context manager to handle application startup and shutdown.
-     - On startup, initializes the camera.
-     - On shutdown, releases the camera resource.
-    """
-    global camera, running
-
     print("Starting application...")
-    camera = cv2.VideoCapture(0)
-
-    if not camera.isOpened():
-        raise RuntimeError("Failed to open camera")
-
-    running = True
-
-    yield # Application is running (yield will loop continually until shutdown)
-
+    camera.start()
+    yield
     print("Shutting down application...")
-    running = False
+    shutdown_event.set()
+    camera.stop()
 
-    if camera is not None:
-        camera.release()
-        print("Camera released")
 
 app = FastAPI(lifespan=lifespan)
 
-def generate_frames():
-    global current_status, running, camera
 
-    while running:
-        try:
-            success, frame = camera.read()
+def frame_generator(request: Request):
+    global current_status
 
-            if not success:
-                print("Camera read failed, stopping stream")
-                break
+    while True:
+        if shutdown_event.is_set():
+            print("Stream exiting due to shutdown")
+            return
 
-            status, results = detector.detect(frame)
-            current_status = status
+        frame = camera.get_frame()
+        if frame is None:
+            time.sleep(0.05)
+            continue
 
-            annotated = frame.copy()
-            annotated = results.plot(img=annotated)
+        status, results = detector.detect(frame)
+        current_status = status
 
-            if detector.check_violation_timer(status):
-                filename = f"violation_{int(time.time())}.jpg"
-                cv2.imwrite(filename, annotated)
-                send_alert(filename)
+        annotated = results.plot(img=frame.copy())
 
-            ret, buffer = cv2.imencode(".jpg", annotated)
-            if not ret:
-                print("Frame encoding failed, skipping frame")
-                continue
+        # if detector.check_violat*ion_timer(status):
+            # try:
+            #     violation_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+            #     filename = f"violation_{violation_time}.jpg"
+            #     cv2.imwrite(filename, annotated)
+            #     send_alert(filename,violation_time)
+            # except Exception as e:
+            #     print(f"Email failed: {e}")
 
-            frame_bytes = buffer.tobytes()
+        ret, buffer = cv2.imencode(".jpg", annotated)
+        if not ret:
+            continue
 
-            yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n"
-            )
-        except Exception as e:
-            print(f"Error in frame generation: {e}")
-            break
+        yield (
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" +
+            buffer.tobytes() +
+            b"\r\n"
+        )
 
-    print("Frame generator stopped")
+        time.sleep(0.03)  # ~30 FPS
 
 
 @app.get("/")
@@ -89,9 +72,14 @@ def index():
     with open("templates/index.html") as f:
         return HTMLResponse(f.read())
 
+
 @app.get("/video")
-def video():
-    return StreamingResponse(generate_frames(), media_type="multipart/x-mixed-replace; boundary=frame")
+def video(request: Request):
+    return StreamingResponse(
+        frame_generator(request),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
 
 @app.get("/status")
 def status():

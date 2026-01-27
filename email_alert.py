@@ -12,7 +12,7 @@ SMTP_USER = os.environ.get("SMTP_EMAIL")    # Your SMTP email from environment v
 SMTP_PASS = os.environ.get("SMTP_PASSWORD") # Your SMTP password from environment variable
 SUPERVISOR_EMAIL = "lolsal4d@gmail.com" # Enter recipient email address here
 
-def send_alert(image_path):
+def send_alert(image_path, time_string):
     msg = EmailMessage()
     msg["Subject"] = "PPE Violation Detected"
     msg["From"] = SMTP_USER
@@ -24,7 +24,7 @@ def send_alert(image_path):
             f.read(),
             maintype="image",
             subtype="jpeg",
-            filename="violation.jpg"
+            filename=f"violation_{time_string}.jpg"
         )
 
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:

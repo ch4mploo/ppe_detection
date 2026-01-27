@@ -2,7 +2,7 @@ import time
 import cv2
 from ultralytics import YOLO
 
-MODEL_PATH = "assets/models/best.pt"
+MODEL_PATH = "assets/models/best_ncnn_model"
 
 # Object detection class
 class PPEDetector:
