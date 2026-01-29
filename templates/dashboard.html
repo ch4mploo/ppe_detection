@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>PPE Safety Dashboard</title>
+
+<style>
+:root {
+  --bg: #0f172a;
+  --card: #111827;
+  --green: #22c55e;
+  --red: #ef4444;
+  --gray: #94a3b8;
+}
+
+body {
+  margin: 0;
+  font-family: 
+    system-ui, 
+    -apple-system, 
+    BlinkMacSystemFont,
+    "Segoe UI Emoji",
+    "Apple Color Emoji",
+    "Noto Color Emoji",
+    sans-serif;
+  background: var(--bg);
+  color: white;
+}
+
+header {
+  padding: 16px 24px;
+  font-size: 20px;
+  font-weight: 600;
+  background: #020617;
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
+  padding: 16px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.status {
+  font-size: 24px;
+  font-weight: bold;
+  margin-top: 12px;
+}
+
+canvas {
+  width: 100%;
+  border-radius: 12px;
+}
+
+.badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  display: inline-block;
+  font-weight: 600;
+}
+
+.ok { background: var(--green); }
+.bad { background: var(--red); }
+.none { background: var(--gray); }
+
+@media (max-width: 900px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    PPE Site Safety Dashboard
+</header>
+
+<div class="dashboard">
+
+  <div class="card">
+    <canvas id="video"></canvas>
+  </div>
+
+  <div class="card">
+    <h3>Detection Status</h3>
+    <div id="status" class="status">
+      <span class="badge none">No detection</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById("video");
+const ctx = canvas.getContext("2d");
+
+const videoWS = new WebSocket(`ws://${location.host}/ws/video`);
+videoWS.binaryType = "blob";
+
+videoWS.onmessage = (event) => {
+  const img = new Image();
+  img.src = URL.createObjectURL(event.data);
+  img.onload = () => {
+    canvas.width = img.width;
+    canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(img.src);
+  };
+};
+
+const statusWS = new WebSocket(`ws://${location.host}/ws/status`);
+const statusDiv = document.getElementById("status");
+
+statusWS.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  let cls = "none";
+
+  if (data.status === "PPE complied") cls = "ok";
+  if (data.status === "PPE not complied") cls = "bad";
+
+  statusDiv.innerHTML = `<span class="badge ${cls}">${data.status}</span>`;
+};
+</script>
+
+</body>
+</html>

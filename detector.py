@@ -2,7 +2,7 @@ import time
 import cv2
 from ultralytics import YOLO
 
-MODEL_PATH = "assets/models/best_ncnn_model"
+MODEL_PATH = "assets/models/best.pt"
 
 # Object detection class
 class PPEDetector:
@@ -34,15 +34,18 @@ class PPEDetector:
         no_helmet = "no_helmet" in labels
         no_boots = "no_boots" in labels
         no_ppe = "none" in labels
+        have_ppe = "helmet" in labels or "vest" in labels or "boots" in labels
         person = "Person" in labels or "person" in labels
 
         status = "No detection"
 
         if person:
-            if no_helmet or no_boots or no_ppe:
+            if (no_helmet or no_boots or no_ppe):
                 status = "PPE not complied"
-            else:
+            elif have_ppe:
                 status = "PPE complied"
+            else:
+                status = "Inconclusive"
 
         return status, results
 
