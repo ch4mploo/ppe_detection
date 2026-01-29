@@ -27,7 +27,7 @@ class PPEDetector:
         self.violation_triggered = False
 
     def detect(self, frame):
-        results = self.model(frame, verbose=False)[0]
+        results = self.model(frame, verbose=False, conf=0.35, iou=0.5, max_det=20)[0]
 
         labels = [self.model.names[int(cls)] for cls in results.boxes.cls]
 
