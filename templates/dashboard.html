@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PPE Safety Dashboard</title>
 
 <style>
@@ -13,11 +14,15 @@
   --gray: #94a3b8;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: 
-    system-ui, 
-    -apple-system, 
+  font-family:
+    system-ui,
+    -apple-system,
     BlinkMacSystemFont,
     "Segoe UI Emoji",
     "Apple Color Emoji",
@@ -27,62 +32,55 @@ body {
   color: white;
 }
 
+/* ===== Header ===== */
 header {
-  padding: 16px 24px;
-  font-size: 20px;
+  padding: 14px 18px;
+  font-size: 18px;
   font-weight: 600;
   background: #020617;
+  text-align: center;
 }
 
+/* ===== Layout ===== */
 .dashboard {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 320px;
   gap: 16px;
   padding: 16px;
 }
 
+/* ===== Cards ===== */
 .card {
   background: var(--card);
-  border-radius: 12px;
-  padding: 16px;
+  border-radius: 16px;
+  padding: 14px;
 }
 
-.status {
-  font-size: 24px;
-  font-weight: bold;
-  margin-top: 12px;
-}
-
-.alert {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #dc2626;
-  color: white;
-  padding: 16px 20px;
-  border-radius: 12px;
-  font-weight: 600;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-  z-index: 999;
-  animation: slideIn 0.3s ease;
-}
-
-.hidden {
-  display: none;
-}
-
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
+/* ===== Video ===== */
+.video-wrapper {
+  width: 100%;
 }
 
 canvas {
   width: 100%;
+  height: auto;
   border-radius: 12px;
+  background: black;
+}
+
+/* ===== Status ===== */
+.status-title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.status {
+  font-size: 20px;
+  font-weight: bold;
 }
 
 .badge {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 999px;
   display: inline-block;
   font-weight: 600;
@@ -92,9 +90,53 @@ canvas {
 .bad { background: var(--red); }
 .none { background: var(--gray); }
 
+/* ===== Alert Toast ===== */
+.alert {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #dc2626;
+  color: white;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  z-index: 1000;
+  width: calc(100% - 32px);
+  max-width: 420px;
+  text-align: center;
+  animation: slideDown 0.3s ease;
+}
+
+.hidden {
+  display: none;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translate(-50%, -30px);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+/* ===== MOBILE BREAKPOINT ===== */
 @media (max-width: 900px) {
   .dashboard {
     grid-template-columns: 1fr;
+    padding: 12px;
+  }
+
+  header {
+    font-size: 16px;
+  }
+
+  .status {
+    font-size: 22px;
   }
 }
 </style>
@@ -103,18 +145,19 @@ canvas {
 <body>
 
 <header>
-    PPE Site Safety Dashboard
+  PPE Site Safety Dashboard
 </header>
 
+<div id="alert" class="alert hidden"></div>
+
 <div class="dashboard">
-  <div id="alert" class="alert hidden"></div>
-  
-  <div class="card">
+
+  <div class="card video-wrapper">
     <canvas id="video"></canvas>
   </div>
 
   <div class="card">
-    <h3>Detection Status</h3>
+    <div class="status-title">Detection Status</div>
     <div id="status" class="status">
       <span class="badge none">No detection</span>
     </div>
@@ -123,7 +166,7 @@ canvas {
 </div>
 
 <script>
-// Video WebSocket
+/* ===== Video WebSocket ===== */
 const canvas = document.getElementById("video");
 const ctx = canvas.getContext("2d");
 
@@ -141,7 +184,7 @@ videoWS.onmessage = (event) => {
   };
 };
 
-// Status WebSocket
+/* ===== Status WebSocket ===== */
 const statusWS = new WebSocket(`ws://${location.host}/ws/status`);
 const statusDiv = document.getElementById("status");
 
@@ -155,22 +198,19 @@ statusWS.onmessage = (event) => {
   statusDiv.innerHTML = `<span class="badge ${cls}">${data.status}</span>`;
 };
 
-// Alert WebSocket
+/* ===== Alert WebSocket ===== */
 const alertBox = document.getElementById("alert");
-
 const alertWS = new WebSocket(`ws://${location.host}/ws/alert`);
 
 alertWS.onmessage = (event) => {
   const data = JSON.parse(event.data);
-
   alertBox.innerText = data.message;
   alertBox.classList.remove("hidden");
 
   setTimeout(() => {
     alertBox.classList.add("hidden");
-  }, 5000); // auto-hide after 5s
+  }, 5000);
 };
-
 </script>
 
 </body>
