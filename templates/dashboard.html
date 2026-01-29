@@ -53,6 +53,29 @@ header {
   margin-top: 12px;
 }
 
+.alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: #dc2626;
+  color: white;
+  padding: 16px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  z-index: 999;
+  animation: slideIn 0.3s ease;
+}
+
+.hidden {
+  display: none;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
 canvas {
   width: 100%;
   border-radius: 12px;
@@ -84,7 +107,8 @@ canvas {
 </header>
 
 <div class="dashboard">
-
+  <div id="alert" class="alert hidden"></div>
+  
   <div class="card">
     <canvas id="video"></canvas>
   </div>
@@ -99,6 +123,7 @@ canvas {
 </div>
 
 <script>
+// Video WebSocket
 const canvas = document.getElementById("video");
 const ctx = canvas.getContext("2d");
 
@@ -116,6 +141,7 @@ videoWS.onmessage = (event) => {
   };
 };
 
+// Status WebSocket
 const statusWS = new WebSocket(`ws://${location.host}/ws/status`);
 const statusDiv = document.getElementById("status");
 
@@ -128,6 +154,23 @@ statusWS.onmessage = (event) => {
 
   statusDiv.innerHTML = `<span class="badge ${cls}">${data.status}</span>`;
 };
+
+// Alert WebSocket
+const alertBox = document.getElementById("alert");
+
+const alertWS = new WebSocket(`ws://${location.host}/ws/alert`);
+
+alertWS.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+
+  alertBox.innerText = data.message;
+  alertBox.classList.remove("hidden");
+
+  setTimeout(() => {
+    alertBox.classList.add("hidden");
+  }, 5000); // auto-hide after 5s
+};
+
 </script>
 
 </body>

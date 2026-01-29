@@ -11,6 +11,8 @@ detector = PPEDetector()
 camera = None
 running = True
 current_status = "No detection"
+alert_event = asyncio.Event()
+last_alert_message = ""
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -27,6 +29,19 @@ async def lifespan(app: FastAPI):
     print("Camera released")
 
 app = FastAPI(lifespan=lifespan)
+
+# Handles sending alert in a non-blocking way
+async def handle_violation_alert(frame):
+    global last_alert_message
+    # Save image with timestamp
+    violation_time = datetime.now().strftime("%Y%m%d-%H%M%S")
+    last_alert_message = f"Violation confirmed at {violation_time}, sending alert email."
+    filename = f"violation_{violation_time}.jpg"
+    cv2.imwrite(filename, frame)
+    # Notify dashboard of new alert
+    alert_event.set() 
+    # Run blocking SMTP in a thread
+    await asyncio.to_thread(send_alert, filename, violation_time)
 
 @app.websocket("/ws/video")
 async def websocket_video(ws: WebSocket):
@@ -48,10 +63,7 @@ async def websocket_video(ws: WebSocket):
             annotated = results.plot(img=annotated)
 
             if detector.check_violation_timer(status):
-                violation_time = datetime.now().strftime("%Y%m%d-%H%M%S")
-                filename = f"violation_{violation_time}.jpg"
-                cv2.imwrite(filename, annotated)
-                send_alert(filename,violation_time)
+                asyncio.create_task(handle_violation_alert(annotated.copy()))
 
             ret, buffer = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret:
@@ -62,6 +74,22 @@ async def websocket_video(ws: WebSocket):
 
     except WebSocketDisconnect:
         print("Video WS disconnected")
+
+@app.websocket("/ws/alert")
+async def websocket_alert(ws: WebSocket):
+    await ws.accept()
+    print("Alert WS connected")
+
+    try:
+        while running:
+            await alert_event.wait()
+            await ws.send_json({
+                "message": last_alert_message,
+                "level": "critical"
+            })
+            alert_event.clear()
+    except WebSocketDisconnect:
+        print("Alert WS disconnected")
 
 @app.websocket("/ws/status")
 async def websocket_status(ws: WebSocket):
