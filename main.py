@@ -41,7 +41,7 @@ async def handle_violation_alert(frame):
     # Notify dashboard of new alert
     alert_event.set() 
     # Run blocking SMTP in a thread
-    await asyncio.to_thread(send_alert, filename, violation_time)
+    await asyncio.to_thread(send_alert, filename, violation_time)   # Comment this line to disable email sending
 
 @app.websocket("/ws/video")
 async def websocket_video(ws: WebSocket):
